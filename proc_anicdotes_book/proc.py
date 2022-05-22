@@ -4,9 +4,6 @@ import logging
 import argparse
 import itertools
 
-from regex import E
-
-
 parser = argparse.ArgumentParser(description='Add cross reference links to the book 《唐|宋轶事汇编》 in markdown format')
 parser.add_argument('file_name') # type=argparse.FileType('r')
 parser.add_argument('--orig', '-o', action='store_const', const=True, default=False,
@@ -134,6 +131,7 @@ if flag_able_to_use_cc and args.convert:
 
 
 if args.output_dir:
+    os.makedirs(args.output_dir, exist_ok=True) 
     filename = os.path.join(args.output_dir, file_path_and_name[1])
 else:
     filename = os.path.join(file_path_and_name[0], file_path_and_name[1])
