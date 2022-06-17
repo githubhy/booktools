@@ -40,7 +40,7 @@ if args.output_dir:
 else:
     out_dir = filepath
 
-out_filenames = [os.path.join(out_dir, '{0}-{1}'.format(os.path.basename(filepath), f) + '.md') for f in filenames]
+out_filenames = [os.path.join(out_dir, '{0}-{1}'.format(os.path.basename(filepath), f) + '.Rmd') for f in filenames]
 
 for i in range(len(in_filenames)):
     lines = []
