@@ -1,6 +1,8 @@
-cn2an==0.5.17
-# docx==0.2.4
-# opencc==1.1.4
-opencc_python_reimplemented==0.1.6
-pyparsing==3.0.4
-python_docx==0.8.10
+beautifulsoup4
+cn2an
+# docx
+mobi
+# opencc
+opencc_python_reimplemented
+pyparsing
+python_docx
