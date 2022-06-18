@@ -20,16 +20,24 @@ logging.basicConfig(level=logging.DEBUG,
 
 doc = Document(args.file_name)
 
+#<span class="cmt1">详后。</span>
+
+def cmt_ele(text_before, level):
+    indent = '' # ' ' * 4
+    cmt_pre_ele = '\n<span class="c{0}">'.format(level) + (indent*level if isinstance(text_before, str) else '')
+    cmt_post_ele = '</span>\n'.format(level) + indent*(level-1)
+    # return (cmt_pre_ele + '[', ']' + cmt_post_ele)
+    return (cmt_pre_ele, cmt_post_ele)
+
 def add_comment(texts, text_before = [], level = 0):
     if type(texts) is list:
-        indent = '' # ' ' * 4
         for i in range(len(texts)):
             # When it is like 【*【 and 【str*【str】, a newline should be inserted in place of *.
             texts[i] = add_comment(texts[i], texts[i-1] if i > 0 else '', level+1)
         if level > 0:
-            cmt_prefix = '\n' + indent*level if isinstance(text_before, str) else ''
-            texts.insert(0, cmt_prefix + '[')
-            texts.append(']{{.cmt{0}}}\n{1}'.format(level, indent*(level-1)))
+            cmt_pre, cmt_post = cmt_ele(text_before, level)
+            texts.insert(0, cmt_pre)
+            texts.append(cmt_post)
     return texts
 
 
@@ -135,14 +143,10 @@ if args.test_cat == 'docx':
     
 
 # Parse nested comments as this post says: https://stackoverflow.com/a/5454510
+parser = per_char if args.test_cat == 'char' else cmts_parser
 styled_texts = []
 FLAG_DEBUG = 0
 for text in iter_text(doc.paragraphs):
-    if args.test_cat == 'char':
-        parser = per_char
-    else:
-        parser = cmts_parser
-
     try:
         res = parser.parse_string(text, parse_all=True)
     except pp.ParseException as pe:
