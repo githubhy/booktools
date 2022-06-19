@@ -20,10 +20,10 @@ out_filenames = fn.get_out_names()
 for i in range(len(in_filenames)):
     with open(in_filenames[i], "r") as f:
         text = f.read()
-        text_upd = re.sub(r'\{\.(\w[\w\d]*)\}\[', r'<span class="\1">', text)
-        text_upd = re.sub(r'\]\{\.(\w[\w\d]*)\}', r'<span>', text_upd)
-        text_upd = re.sub(r'\<(\w[\w\d]*)\>', r'<span class="\1">', text_upd)
-        text_upd = re.sub(r'\<(/\w[\w\d]*)\>', r'<span>', text_upd)
+        text = re.sub(r'\<(\w[\w\d]*)\>', r'<span class="\1">', text)
+        text = re.sub(r'\<(/\w[\w\d]*)\>', r'</span>', text)
+        text = re.sub(r'\{\.(\w[\w\d]*)\}\[', r'<span class="\1">', text)
+        text = re.sub(r'\]\{\.(\w[\w\d]*)\}', r'</span>', text)
 
     with open(out_filenames[i], "w") as f:
-        f.write(text_upd)
+        f.write(text)
