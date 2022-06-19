@@ -6,3 +6,4 @@ mobi
 opencc_python_reimplemented
 pyparsing
 python_docx
+pytest

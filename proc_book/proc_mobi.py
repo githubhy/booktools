@@ -1,8 +1,8 @@
-import os
 import logging
 import argparse
 import mobi
 from bs4 import BeautifulSoup
+from fileinout import FilenameInOut
 
 parser = argparse.ArgumentParser(description='')
 parser.add_argument('--output_dir', type=str, default=None)
@@ -16,32 +16,9 @@ logging.basicConfig(level=logging.DEBUG,
     datefmt="%d/%b/%Y %H:%M:%S")
 
 
-try:
-    filenames = []
-    filepath = ''
-    if os.path.isdir(args.file_name_or_dir):
-        filepath = args.file_name_or_dir
-        for f in os.listdir(filepath):
-            if f.endswith(".mobi"):
-                filenames.append(f.replace('.mobi', ''))
-    else:
-        file_head, file_extension = os.path.splitext(args.file_name_or_dir)
-        (filepath, filename) = os.path.split(file_head)
-        filenames.append(filename)
-except:
-    log.error("No file name/dir specified or invalid file name/dir")
-    exit(1)
-
-in_filenames = ['{0}{1}'.format(os.path.join(filepath, f), '.mobi') for f in filenames]
-
-if args.output_dir:
-    os.makedirs(args.output_dir, exist_ok=True) 
-    out_dir = args.output_dir
-else:
-    out_dir = filepath
-
-out_filenames = [os.path.join(out_dir, '{0}-{1}'.format(os.path.basename(filepath), f) + '.Rmd') for f in filenames]
-
+fn = FilenameInOut(args.file_name_or_dir, '.mobi', args.output_dir, '.Rmd')
+in_filenames = fn.get_in_names()
+out_filenames = fn.get_out_names()
 for i in range(len(in_filenames)):
     lines = []
     tempdir, filepath = mobi.extract(in_filenames[i])

@@ -1,10 +1,11 @@
-import os
 import logging
 import argparse
 import itertools
 from docx import Document
 import pyparsing as pp
 from pyparsing import pyparsing_unicode as ppu
+from fileinout import FilenameInOut
+
 
 parser = argparse.ArgumentParser(description='')
 parser.add_argument('--output_dir', type=str, default=None)
@@ -18,15 +19,11 @@ logging.basicConfig(level=logging.DEBUG,
     datefmt="%d/%b/%Y %H:%M:%S")
 
 
-doc = Document(args.file_name)
-
-#<span class="cmt1">详后。</span>
-
 def cmt_ele(text_before, level):
-    indent = '' # ' ' * 4
-    cmt_pre_ele = '\n<span class="c{0}">'.format(level) + (indent*level if isinstance(text_before, str) else '')
-    cmt_post_ele = '</span>\n'.format(level) + indent*(level-1)
-    # return (cmt_pre_ele + '[', ']' + cmt_post_ele)
+    left = '{{.c{0}}}['.format(level) #'<span class="c{0}">'.format(level)
+    right = ']{{.c{0}}}'.format(level) #'</span>\n'.format(level)
+    cmt_pre_ele = ('\n' if isinstance(text_before, str) else '') + left
+    cmt_post_ele = right + '\n'
     return (cmt_pre_ele, cmt_post_ele)
 
 def add_comment(texts, text_before = [], level = 0):
@@ -34,10 +31,13 @@ def add_comment(texts, text_before = [], level = 0):
         for i in range(len(texts)):
             # When it is like 【*【 and 【str*【str】, a newline should be inserted in place of *.
             texts[i] = add_comment(texts[i], texts[i-1] if i > 0 else '', level+1)
+
         if level > 0:
             cmt_pre, cmt_post = cmt_ele(text_before, level)
+            texts = [text.replace('[', '〈').replace(']', '〉') if isinstance(text, str) else text for text in texts]
             texts.insert(0, cmt_pre)
             texts.append(cmt_post)
+
     return texts
 
 
@@ -111,20 +111,9 @@ def test_docx(pars):
         if 1 or (pf.first_line_indent != None and int(pf.first_line_indent) > 0) or (pf.left_indent != None and int(pf.left_indent) > 0):
             print('{0} {4} -- {5} -- {1} -- {3} -- {2}'.format(pf.first_line_indent, pf.alignment, par.text[0:10], pf.space_before, pf.left_indent, par.style.name))
 
-try:
-    file_head, file_extension = os.path.splitext(args.file_name)
-    file_path_and_name = os.path.split(file_head)
-except:
-    log.error("No file name specified or invalid filename")
-    exit(1)
 
-if args.output_dir:
-    os.makedirs(args.output_dir, exist_ok=True) 
-    filename = os.path.join(args.output_dir, file_path_and_name[1])
-else:
-    filename = os.path.join(file_path_and_name[0], file_path_and_name[1])
-
-out_filename = filename + '.Rmd'
+fn = FilenameInOut(args.file_name, dir_out=args.output_dir, ext_out='.Rmd')
+doc = Document(fn.get_in_names()[0])
 
 chars = pp.printables + ppu.Chinese.printables + '〇 　。，；：、﹑-！￥……（）―？《》〈〉〖〗■□♀．·“”„’‘◎○,;:/-!?<>~()[]{}#@$%^&*+=_/\\|`\'\'"'
 content = pp.Combine(pp.Word(chars), adjacent = False) # Combine() is space sensitive, see: https://stackoverflow.com/a/2940844
@@ -150,7 +139,7 @@ for text in iter_text(doc.paragraphs):
     try:
         res = parser.parse_string(text, parse_all=True)
     except pp.ParseException as pe:
-        print(pe.explain(depth=0)) # logging.warning
+        print(pe.explain(depth=0))
     styled_text = ''.join(flatten(add_comment(res.as_list())))
     styled_texts.append(styled_text)
 
@@ -158,5 +147,5 @@ for text in iter_text(doc.paragraphs):
         print('[original text]: ' + text)
         print('[parsed text]: ' + styled_text)
 
-with open(out_filename, 'w') as f:
+with open(fn.get_out_names()[0], 'w') as f:
     f.write('\n\n'.join(styled_texts))
