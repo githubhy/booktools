@@ -2,7 +2,7 @@ import logging
 import argparse
 import mobi
 from bs4 import BeautifulSoup
-from fileinout import FilenameInOut
+from utils import FilenameInOut
 
 parser = argparse.ArgumentParser(description='')
 parser.add_argument('--output_dir', type=str, default=None)

@@ -4,7 +4,7 @@ import itertools
 from docx import Document
 import pyparsing as pp
 from pyparsing import pyparsing_unicode as ppu
-from fileinout import FilenameInOut
+from utils import FilenameInOut, flatten
 
 
 parser = argparse.ArgumentParser(description='')
@@ -39,16 +39,6 @@ def add_comment(texts, text_before = [], level = 0):
             texts.append(cmt_post)
 
     return texts
-
-
-def flatten(x):
-    result = []
-    for el in x:
-        if hasattr(el, "__iter__") and not isinstance(el, str):
-            result.extend(flatten(el))
-        else:
-            result.append(el)
-    return result
 
 
 def iter_text(paragraphs):

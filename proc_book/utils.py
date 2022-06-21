@@ -35,3 +35,12 @@ class FilenameInOut:
 
     def get_out_names(self):
         return [os.path.join(self.path_out, f) + self.ext_out for f in self.filenames]
+
+def flatten(x):
+    result = []
+    for el in x:
+        if hasattr(el, "__iter__") and not isinstance(el, str):
+            result.extend(flatten(el))
+        else:
+            result.append(el)
+    return result

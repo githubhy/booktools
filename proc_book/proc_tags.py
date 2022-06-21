@@ -3,7 +3,7 @@ import argparse
 from docx import Document
 import pyparsing as pp
 from pyparsing import pyparsing_unicode as ppu
-from fileinout import FilenameInOut
+from utils import FilenameInOut, flatten
 
 
 parser = argparse.ArgumentParser(description='')
@@ -25,28 +25,34 @@ id = pp.Group(pp.Literal('#') + id_name).setName('id')
 # class: .xxx
 klass = pp.Literal('.') + pp.Regex(r'\w[\w\d-]*')
 
-all_chars = pp.printables + ppu.Chinese.printables + '〇 　。，；：、﹑-！￥……（）―？《》〈〉〖〗【】■□♀．·“”„’‘◎○,;:/-!?<>~()[]{}#@$%^&*+=_/\\|`\'\'"\r\n\t\f\v'
-text = pp.Word(all_chars.translate(str.maketrans('', '', '[]')))
-text_w_brackets = pp.Literal('[') + text[...] + pp.Literal(']')
-attr_content = text[...] + text_w_brackets[...] + text[...]
-attr_content_w_brackets = pp.Group(pp.Literal('[') + attr_content + pp.Literal(']'))
+def t(s, l, t):
+    return t[0]
 
-def make_attr_parser(attr_name):
-    attr = pp.Forward()
-    attr_0 = attr_content_w_brackets + pp.Literal('{') + attr_name + pp.Literal('}')
-    attr_1 = attr_0 | attr
-    attr << pp.nested_expr(content=attr_1)
-    attr.set_name('attr')
-    return attr
-
-# attr: [yyy]{id}
-id_attr = make_attr_parser(id)
-# ref: [yyy](id)
-id_ref = attr_content_w_brackets + pp.Literal('(') + id + pp.Literal(')').setName('id_ref')
-# attr: [yyy]{class}
-klass_attr = make_attr_parser(klass)
+all_chars = pp.printables + ppu.Chinese.printables + '〇　。，；：、﹑-！￥……（）―？《》〈〉〖〗【】「」■□♀．·“”„’‘◎○ ,;:/-!?<>~()[]{}#@$%^&*+=_/\\|`\'\'"\r\n\t\f\v'
+text_raw = pp.Word(all_chars, excludeChars="[]{}()")
+text_w_brackets = pp.Literal('[') + text_raw[...] + pp.Literal(']').set_name('text_w_brackets')
+text_w_braces = pp.Literal('{') + text_raw[...] + pp.Literal('}').set_name('text_w_braces')
+text_w_parentheses = pp.Literal('(') + text_raw[...] + pp.Literal(')').set_name('text_w_parentheses')
+text = text_raw & text_w_brackets[...] & text_w_braces[...] & text_w_parentheses[...]
+_attr = pp.Forward()
+_id = pp.Literal('[') + text + pp.Literal(']{#') + text_raw + pp.Literal('}')
+_ref = pp.Literal('[') + text + pp.Literal('](#') + text_raw + pp.Literal(')')
+attr_content =  text & _id[...] & _ref[...]
+_attr << attr_content[...] & pp.nested_expr('[', pp.Literal(']{.') + pp.one_of(pp.alphas) + pp.Word(pp.alphanums)[...] + pp.Literal('}'), content=attr_content)
+attr = _attr
+attr.set_name('attr')
+attr.setDefaultWhitespaceChars("")
 
 pp.enable_all_warnings()
 
-fn = FilenameInOut(args.file_name, dir_out=args.output_dir, ext_out='.Rmd')
-doc = Document(fn.get_in_names()[0])
+result = attr.parse_string('''
+1. []{#宋轶二十八-徐处仁-1}
+见*吴*敏[2](#宋轶二十八-吴敏-2)。
+2. []{#宋轶二十八-徐处仁-2}
+见**吴**敏[4](#宋轶二十八-吴敏-4)。
+''')
+
+print(''.join(flatten(result.as_list())))
+
+# fn = FilenameInOut(args.file_name, dir_out=args.output_dir, ext_out='.Rmd')
+# doc = Document(fn.get_in_names()[0])

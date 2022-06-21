@@ -1,6 +1,6 @@
 import logging
 import argparse
-from fileinout import FilenameInOut
+from utils import FilenameInOut
 import re
 
 parser = argparse.ArgumentParser(description='')

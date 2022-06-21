@@ -1,4 +1,4 @@
-from fileinout import FilenameInOut
+from utils import FilenameInOut
 from pathlib import Path
 import os
 import pytest
