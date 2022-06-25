@@ -20,7 +20,7 @@ logging.basicConfig(level=logging.DEBUG,
 
 
 def cmt_ele(text_before, level):
-    left = '{{.c{0}}}['.format(level) #'<span class="c{0}">'.format(level)
+    left = '[' #'{{.c{0}}}['.format(level) #'<span class="c{0}">'.format(level)
     right = ']{{.c{0}}}'.format(level) #'</span>\n'.format(level)
     cmt_pre_ele = ('\n' if isinstance(text_before, str) else '') + left
     cmt_post_ele = right + '\n'
@@ -106,8 +106,9 @@ fn = FilenameInOut(args.file_name, dir_out=args.output_dir, ext_out='.Rmd')
 doc = Document(fn.get_in_names()[0])
 
 chars = pp.printables + ppu.Chinese.printables + '〇 　。，；：、﹑-！￥……（）―？《》〈〉〖〗■□♀．·“”„’‘◎○,;:/-!?<>~()[]{}#@$%^&*+=_/\\|`\'\'"'
-content = pp.Combine(pp.Word(chars), adjacent = False) # Combine() is space sensitive, see: https://stackoverflow.com/a/2940844
-# content = pp.Combine(pp.Regex(r'[^【】]*')) # Regex() is very time consuming
+# Combine() is space sensitive, see: https://stackoverflow.com/a/2940844
+# content = pp.Combine(pp.Word(chars), adjacent = False)
+content = pp.CharsNotIn('【】')
 per_char = pp.Word(chars + '【】')
 comment = pp.nested_expr('【', '】', content=content)
 cmts_parser = ((content + comment[...]) ^ comment)[...]
@@ -123,19 +124,37 @@ if args.test_cat == 'docx':
 
 # Parse nested comments as this post says: https://stackoverflow.com/a/5454510
 parser = per_char if args.test_cat == 'char' else cmts_parser
-styled_texts = []
+out_texts = []
 FLAG_DEBUG = 0
+chap_name = ''
+sec_name = ''
+i_sec_para = -1
 for text in iter_text(doc.paragraphs):
     try:
         res = parser.parse_string(text, parse_all=True)
     except pp.ParseException as pe:
         print(pe.explain(depth=0))
     styled_text = ''.join(flatten(add_comment(res.as_list())))
-    styled_texts.append(styled_text)
+
+    if styled_text.startswith('# '):
+        chap_name = styled_text.split(' ')[1]
+        sec_name = ''
+        i_sec_para = -1
+    if styled_text.startswith('## '):
+        sec_name = styled_text.split(' ')[1]
+        i_sec_para = 0
+
+    if sec_name and i_sec_para > 0:
+        out_texts.append('[]{{#{0}-{1}-{2}}}\n{3}'.format(chap_name, sec_name, i_sec_para, styled_text))
+    else:
+        out_texts.append(styled_text)
+    
+    if i_sec_para >= 0:
+        i_sec_para += 1
 
     if FLAG_DEBUG:
         print('[original text]: ' + text)
         print('[parsed text]: ' + styled_text)
 
 with open(fn.get_out_names()[0], 'w') as f:
-    f.write('\n\n'.join(styled_texts))
+    f.write('\n\n'.join(out_texts))
