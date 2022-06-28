@@ -43,7 +43,7 @@ for i in range(len(in_filenames)):
                     text = p.text
                 lines.append('{0}{1}'.format(prefix, text))
 
-    attacher = MdIdAttacher('\n\n'.join(lines))
+    attacher = MdIdAttacher('\n\n'.join([text.strip() for text in lines if text.strip()]))
 
     with open(out_filenames[i], "w") as f:
         f.write(attacher.attached_full)

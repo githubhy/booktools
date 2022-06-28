@@ -4,7 +4,7 @@ import itertools
 from docx import Document
 import pyparsing as pp
 from pyparsing import pyparsing_unicode as ppu
-from utils import FilenameInOut, flatten
+from utils import FilenameInOut, flatten, MdIdAttacher
 
 
 parser = argparse.ArgumentParser(description='')
@@ -14,7 +14,7 @@ parser.add_argument('file_name')
 args = parser.parse_args()
 
 log = logging.getLogger(__name__)
-logging.basicConfig(level=logging.DEBUG,
+logging.basicConfig(level=logging.CRITICAL,
     format="[%(asctime)s] %(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s",
     datefmt="%d/%b/%Y %H:%M:%S")
 
@@ -124,7 +124,7 @@ if args.test_cat == 'docx':
 
 # Parse nested comments as this post says: https://stackoverflow.com/a/5454510
 parser = per_char if args.test_cat == 'char' else cmts_parser
-out_texts = []
+styled_texts = []
 FLAG_DEBUG = 0
 chap_name = ''
 sec_name = ''
@@ -135,50 +135,15 @@ for text in iter_text(doc.paragraphs):
     except pp.ParseException as pe:
         print(pe.explain(depth=0))
     styled_text = ''.join(flatten(add_comment(res.as_list())))
-
-    if styled_text.startswith('# '):
-        chap_name = styled_text.split(' ')[1]
-        sec_name = ''
-        i_sec_para = -1
-    if styled_text.startswith('## '):
-        sec_name = styled_text.split(' ')[1]
-        i_sec_para = 0
-
-    if sec_name and i_sec_para > 0:
-        out_texts.append('[]{{#{0}-{1}-{2}}}\n{3}'.format(chap_name, sec_name, i_sec_para, styled_text))
-    else:
-        out_texts.append(styled_text)
-    
-    if i_sec_para >= 0:
-        i_sec_para += 1
+    styled_texts.append(styled_text)
 
     if FLAG_DEBUG:
         print('[original text]: ' + text)
         print('[parsed text]: ' + styled_text)
 
+attacher = MdIdAttacher('\n\n'.join([text.strip() for text in styled_texts if text.strip()]))
+
 with open(fn.get_out_names()[0], 'w') as f:
-    f.write('\n\n'.join(out_texts))
+    f.write(attacher.attached_full)
 
-class MdParaId:
-    def __init__(self):
-        self.reset_chap(self)
-
-    def reset_chap(self):
-        self.chap_name = ''
-        self.chap_para_index = -1
-        self.reset_sec(self)
-    
-    def reset_sec(self):
-        self.sec_name = ''
-        self.sec_para_index = -1
-    
-    def proc_line(self, line):
-        if (self.chap_name and self.chap_para_index >= 1) and not (self.sec_name and self.sec_para_index >= 1):
-            self.id = '[]{{#{0}-{1}}}\n{2}'.format(self.chap_name, self.chap_para_index, line.strip())
-        if (self.chap_name and self.chap_para_index >= 1) and (self.sec_name and self.sec_para_index >= 1):
-            self.id = '[]{{#{0}-{1}-{2}}}\n{3}'.format(self.chap_name, self.sec_name, self.sec_para_index, line.strip())
-        if self.chap_name and not self.sec_name:
-            self.chap_para_index += 1
-        if (self.chap_name and self.chap_para_index >= 1) and self.sec_name:
-            self.sec_para_index += 1
             
