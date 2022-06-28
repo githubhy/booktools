@@ -2,7 +2,7 @@ import logging
 import argparse
 import pyparsing as pp
 from pyparsing import pyparsing_unicode as ppu
-from utils import FilenameInOut, flatten
+from utils import FilenameInOut
 import pprint
 
 parser = argparse.ArgumentParser(description='')
@@ -150,10 +150,12 @@ if flag_DEBUG:
     exit(0)
 
 
-fn = FilenameInOut(args.file_name, dir_out=args.output_dir, ext_out='.Rmd')
+fn = FilenameInOut(args.file_name, ext_in='.Rmd', dir_out=args.output_dir, ext_out='.md')
+in_names = fn.get_in_names()
+out_names = fn.get_out_names()
+for i in range(len(in_names)):
+    with open(in_names[i], 'r') as f:
+        parsed_content = content.transform_string(f.read())
 
-with open(fn.get_in_names()[0]) as f:
-    parsed_content = content.transform_string(f.read())
-
-with open(fn.get_out_names()[0], 'w') as f:
-    f.write(parsed_content)
+    with open(out_names[i], 'w') as f:
+        f.write(parsed_content)

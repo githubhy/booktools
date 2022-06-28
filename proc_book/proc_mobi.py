@@ -2,7 +2,7 @@ import logging
 import argparse
 import mobi
 from bs4 import BeautifulSoup
-from utils import FilenameInOut
+from utils import FilenameInOut, MdIdAttacher
 
 parser = argparse.ArgumentParser(description='')
 parser.add_argument('--output_dir', type=str, default=None)
@@ -11,7 +11,7 @@ parser.add_argument('file_name_or_dir')
 args = parser.parse_args()
 
 log = logging.getLogger(__name__)
-logging.basicConfig(level=logging.DEBUG,
+logging.basicConfig(level=logging.CRITICAL,
     format="[%(asctime)s] %(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s",
     datefmt="%d/%b/%Y %H:%M:%S")
 
@@ -43,5 +43,7 @@ for i in range(len(in_filenames)):
                     text = p.text
                 lines.append('{0}{1}'.format(prefix, text))
 
+    attacher = MdIdAttacher('\n\n'.join(lines))
+
     with open(out_filenames[i], "w") as f:
-        f.write('\n\n'.join(lines))
+        f.write(attacher.attached_full)

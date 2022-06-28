@@ -7,3 +7,5 @@ opencc_python_reimplemented
 pyparsing
 python_docx
 pytest
+transitions
+transitions[diagrams]

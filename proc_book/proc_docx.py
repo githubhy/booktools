@@ -158,3 +158,27 @@ for text in iter_text(doc.paragraphs):
 
 with open(fn.get_out_names()[0], 'w') as f:
     f.write('\n\n'.join(out_texts))
+
+class MdParaId:
+    def __init__(self):
+        self.reset_chap(self)
+
+    def reset_chap(self):
+        self.chap_name = ''
+        self.chap_para_index = -1
+        self.reset_sec(self)
+    
+    def reset_sec(self):
+        self.sec_name = ''
+        self.sec_para_index = -1
+    
+    def proc_line(self, line):
+        if (self.chap_name and self.chap_para_index >= 1) and not (self.sec_name and self.sec_para_index >= 1):
+            self.id = '[]{{#{0}-{1}}}\n{2}'.format(self.chap_name, self.chap_para_index, line.strip())
+        if (self.chap_name and self.chap_para_index >= 1) and (self.sec_name and self.sec_para_index >= 1):
+            self.id = '[]{{#{0}-{1}-{2}}}\n{3}'.format(self.chap_name, self.sec_name, self.sec_para_index, line.strip())
+        if self.chap_name and not self.sec_name:
+            self.chap_para_index += 1
+        if (self.chap_name and self.chap_para_index >= 1) and self.sec_name:
+            self.sec_para_index += 1
+            
