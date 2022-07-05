@@ -37,6 +37,14 @@ class FilenameInOut:
 
     def get_out_names(self):
         return [os.path.join(self.path_out, f) + self.ext_out for f in self.filenames]
+    
+    @property
+    def file_names(self):
+        return self.filenames
+    
+    @property
+    def out_path(self):
+        return self.path_out
 
 def flatten(x):
     result = []

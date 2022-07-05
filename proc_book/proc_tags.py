@@ -4,10 +4,12 @@ import pyparsing as pp
 from pyparsing import pyparsing_unicode as ppu
 from utils import FilenameInOut
 import pprint
+import os
 
 parser = argparse.ArgumentParser(description='')
 parser.add_argument('--output_dir', type=str, default=None)
 parser.add_argument('--test_cat', type=str, default=None)
+parser.add_argument('--hugofy', action='store_true')
 parser.add_argument('file_name')
 args = parser.parse_args()
 
@@ -149,13 +151,37 @@ if flag_DEBUG:
     p.pprint(res)
     exit(0)
 
+def dict2str(d):
+    return '\n'.join(['{}: {}'.format(k,v) for k,v in d.items()])
+
+def hugo_front_matter(d):
+    return '---\n{}\n---\n'.format(dict2str(d))
+
 
 fn = FilenameInOut(args.file_name, ext_in='.Rmd', dir_out=args.output_dir, ext_out='.md')
 in_names = fn.get_in_names()
 out_names = fn.get_out_names()
+file_names = fn.file_names
+out_path = fn.out_path
 for i in range(len(in_names)):
     with open(in_names[i], 'r') as f:
         parsed_content = content.transform_string(f.read())
 
-    with open(out_names[i], 'w') as f:
-        f.write(parsed_content)
+    if args.hugofy:
+        out_dir = os.path.join(out_path, file_names[i])
+        os.makedirs(out_dir, exist_ok=True) 
+        out_name = os.path.join(out_dir, file_names[i])
+
+        chap_start = '\n# '
+        chaps = parsed_content.split('\n# ')
+        chaps[0] = chaps[0].replace('# ', '')
+        for chap_i in range(len(chaps)):
+            chap_name = chaps[chap_i].partition('\n')[0]
+            front_matter = hugo_front_matter({'weight': chap_i+1, 'title': chap_name})
+            with open('{}-{:02.0f}.{}'.format(out_name, chap_i, 'md'), 'w') as f:
+                f.write(front_matter + chap_start + chaps[chap_i])
+        with open(os.path.join(out_dir, '_index.md'), 'w') as f:
+            f.write(hugo_front_matter({'weight': i+1, 'title': file_names[i], 'bookCollapseSection': 'true'}))
+    else:
+        with open(out_names[i], 'w') as f:
+            f.write(parsed_content)
