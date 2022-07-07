@@ -19,29 +19,32 @@ logging.basicConfig(level=logging.CRITICAL,
 fn = FilenameInOut(args.file_name_or_dir, '.mobi', args.output_dir, '.Rmd')
 in_filenames = fn.get_in_names()
 out_filenames = fn.get_out_names()
+
+def parse(soup):
+    for div in soup.find_all('div'):
+        for p in div.find_all('p'):
+            if p.has_attr('align') and p["align"] == 'center':
+                prefix = '# '
+                text = p.text
+                # if p.a and p.a.has_attr('href'):
+                #     print('[{0}]({1})\n'.format(p.text, p.a["href"]))
+            elif p.text.startswith('○'):
+                prefix = '## '
+                text = p.text[1:]
+            elif p.text.startswith('◎'):
+                prefix = '## '
+                text = p.text[1:]
+            else:
+                prefix = ''
+                text = p.text
+            yield '{0}{1}'.format(prefix, text)
+
 for i in range(len(in_filenames)):
-    lines = []
     tempdir, filepath = mobi.extract(in_filenames[i])
     with open(filepath, "r") as f:
         page = f.read()
         soup = BeautifulSoup(page, 'html.parser')
-        for div in soup.find_all('div'):
-            for p in div.find_all('p'):
-                if p.has_attr('align') and p["align"] == 'center':
-                    prefix = '# '
-                    text = p.text
-                # if p.a and p.a.has_attr('href'):
-                #     print('[{0}]({1})\n'.format(p.text, p.a["href"]))
-                elif p.text.startswith('○'):
-                    prefix = '## '
-                    text = p.text[1:]
-                elif p.text.startswith('◎'):
-                    prefix = '## '
-                    text = p.text[1:]
-                else:
-                    prefix = ''
-                    text = p.text
-                lines.append('{0}{1}'.format(prefix, text))
+        lines = parse(soup)
 
     attacher = MdIdAttacher('\n\n'.join([text.strip() for text in lines if text.strip()]))
 
