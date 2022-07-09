@@ -1,0 +1,35 @@
+name: Trigger Dispatch
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push or pull request events but only for the "main" branch
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  build:
+    # Main workflow job that builds, tests, etc.
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo Runing build
+
+  dispatch:
+    needs: build
+    strategy:
+      matrix:
+        repo: ['githubhy/hisbook', 'githubhy/hisnotes']
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repository Dispatch
+        uses: peter-evans/repository-dispatch@v2
+        with:
+          token: ${{ secrets.PARENT_REP_AT }}
+          repository: ${{ matrix.repo }}
+          event-type: update-submodule
+          client-payload: '{"ref": "${{ github.ref }}", "sha": "${{ github.sha }}", "path": "tools"}'
