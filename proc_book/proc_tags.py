@@ -5,11 +5,13 @@ from pyparsing import pyparsing_unicode as ppu
 from utils import FilenameInOut
 import pprint
 import os
+import multiprocessing as mp
 
 parser = argparse.ArgumentParser(description='')
 parser.add_argument('--output_dir', type=str, default=None)
 parser.add_argument('--test_cat', type=str, default=None)
 parser.add_argument('--hugofy', action='store_true')
+parser.add_argument('--multicores', action='store_true')
 parser.add_argument('file_name')
 args = parser.parse_args()
 
@@ -159,11 +161,14 @@ def hugo_front_matter(d):
 
 
 fn = FilenameInOut(args.file_name, ext_in='.Rmd', dir_out=args.output_dir, ext_out='.md')
-in_names = fn.get_in_names()
-out_names = fn.get_out_names()
-file_names = fn.file_names
-out_path = fn.out_path
-for i in range(len(in_names)):
+
+
+def parse_tags(i):
+    in_names = fn.get_in_names()
+    out_names = fn.get_out_names()
+    file_names = fn.file_names
+    out_path = fn.out_path
+
     with open(in_names[i], 'r') as f:
         parsed_content = content.transform_string(f.read())
 
@@ -185,3 +190,12 @@ for i in range(len(in_names)):
     else:
         with open(out_names[i], 'w') as f:
             f.write(parsed_content)
+
+if args.multicores:
+    pool = mp.Pool(processes=len(os.sched_getaffinity(0)))
+    results = [pool.apply_async(parse_tags, args=(x,)) for x in range(len(fn.file_names))]
+    pool.close()
+    pool.join()
+else:
+    for i in range(len(fn.file_names)):
+        parse_tags(i)
