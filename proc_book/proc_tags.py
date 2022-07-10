@@ -13,6 +13,7 @@ parser.add_argument('--output_dir', type=str, default=None)
 parser.add_argument('--test_cat', type=str, default=None)
 parser.add_argument('--hugofy', action='store_true')
 parser.add_argument('--multicores', action='store_true')
+parser.add_argument('--id_complete_dir', type=str, default=None)
 parser.add_argument('file_name')
 args = parser.parse_args()
 
@@ -239,14 +240,14 @@ def replace_id(match):
     id = match.group(2)
     m3 = match.group(3)
     new_id = id
-    if ids.get(id, None):
-        fname, fsubname = ids[id]
-        new_id = 'docs/{}{}#{}'.format(fname, '/' + fsubname if fsubname else '', id)
+    if ids.get(id[1:], None):
+        fname, fsubname = ids[id[1:]]
+        new_id = 'docs/{}{}{}'.format(fname, '/' + fsubname if fsubname else '', id)
     return m1 + new_id + m3
 
 def replace_file_with_id(path):
     with open(path, 'r') as f:
-        text_with_new_ref = re.sub(r'(\]\(\{\{\<\s*relref\s*\")#(.*)(\"\s*\>\}\}.*\))',
+        text_with_new_ref = re.sub(r'(\]\(\{\{\<\s*relref\s*\")(#.*)(\"\s*\>\}\}.*\))',
                                     replace_id,
                                     f.read())
     with open(path, 'w') as f:
@@ -255,14 +256,15 @@ def replace_file_with_id(path):
     log.info('[id] completion done for ' + path)
 
 
+id_complete_dir = args.id_complete_dir if args.id_complete_dir else out_path
 if args.multicores:
     pool = mp.Pool(processes=len(os.sched_getaffinity(0)))
     results = []
-    for root, dirs, files in os.walk(out_path):
+    for root, dirs, files in os.walk(id_complete_dir):
         results += [pool.apply_async(replace_file_with_id, args=(os.path.join(root, file),)) for file in files]
     pool.close()
     pool.join()
 else:
-    for root, dirs, files in os.walk(out_path):
+    for root, dirs, files in os.walk(id_complete_dir):
         for file in files:
             replace_file_with_id(os.path.join(root, file))
