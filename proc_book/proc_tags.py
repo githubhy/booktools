@@ -176,7 +176,7 @@ def get_ids(s):
     return re.findall(r'id=\"(.*)\"', s)
 
 def get_ref_ids(s):
-    return re.findall(r'\]\(\{\{\<\s*relref\s*\"(#.*)\"\s*\>\}\}.*\)', s)
+    return re.findall(r'\]\(\{\{\<\s*relref\s*\"(#.*?)\"\s*\>\}\}.*?\)', s)
 
 def parse_tags(i, file_name, in_name, out_path):
 
@@ -195,8 +195,8 @@ def parse_tags(i, file_name, in_name, out_path):
             f.write(hugo_front_matter({'weight': i+1, 'title': file_name, 'bookCollapseSection': 'true'}))
 
         chap_start = '\n# '
-        chaps = parsed_content.split('\n# ')
-        chaps[0] = chaps[0].replace('# ', '')
+        chaps = parsed_content.split(chap_start)
+        chaps[0] = chaps[0].replace('# ', '', 1)
         for chap_i in range(len(chaps)):
             chap_name = chaps[chap_i].partition('\n')[0]
             front_matter = hugo_front_matter({'weight': chap_i+1, 'title': chap_name})
@@ -239,15 +239,18 @@ def replace_id(match):
     m1 = match.group(1)
     id = match.group(2)
     m3 = match.group(3)
-    new_id = id
     if ids.get(id[1:], None):
         fname, fsubname = ids[id[1:]]
         new_id = 'docs/{}{}{}'.format(fname, '/' + fsubname if fsubname else '', id)
+    else:
+        new_id = id
+        log.warn('[id] no id named: ' + id)
+    
     return m1 + new_id + m3
 
 def replace_file_with_id(path):
     with open(path, 'r') as f:
-        text_with_new_ref = re.sub(r'(\]\(\{\{\<\s*relref\s*\")(#.*)(\"\s*\>\}\}.*\))',
+        text_with_new_ref = re.sub(r'(\]\(\{\{\<\s*relref\s*\")(#.*?)(\"\s*\>\}\}.*?\))',
                                     replace_id,
                                     f.read())
     with open(path, 'w') as f:
