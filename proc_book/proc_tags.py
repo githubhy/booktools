@@ -6,6 +6,7 @@ from utils import FilenameInOut
 import pprint
 import os
 import multiprocessing as mp
+import re
 
 parser = argparse.ArgumentParser(description='')
 parser.add_argument('--output_dir', type=str, default=None)
@@ -56,9 +57,17 @@ def handle_empty_id(toks):
 
 def handle_ref(toks):
     d = toks[0].as_dict()
-    return '<a{link}>{0}</a>'.format(''.join(d.get('text')[0]),
-                    link = ' href="{0}"'.format(d['id_tag'][0]) if d.get('id_tag') else ''
-                    )
+    if args.hugofy:
+        tag = d['id_tag'][0] if d.get('id_tag') else ''
+        return '[{text}]({{{{< relref "{link}" >}}}} "{description}")'.format(
+            text=''.join(d.get('text')[0]),
+            link='#' + tag,
+            description=tag
+        )
+    else:
+        return '<a{link}>{0}</a>'.format(''.join(d.get('text')[0]),
+                        link = ' href="{0}"'.format(d['id_tag'][0]) if d.get('id_tag') else ''
+                        )
 
 
 base_n_chars = '*[]{}()'
@@ -162,20 +171,31 @@ def hugo_front_matter(d):
 
 fn = FilenameInOut(args.file_name, ext_in='.Rmd', dir_out=args.output_dir, ext_out='.md')
 
+def get_ids(s):
+    return re.findall(r'id=\"(.*)\"', s)
 
-def parse_tags(i):
-    in_names = fn.get_in_names()
-    out_names = fn.get_out_names()
-    file_names = fn.file_names
-    out_path = fn.out_path
+def get_ref_ids(s):
+    return re.findall(r'\]\(\{\{\<\s*relref\s*\"(#.*)\"\s*\>\}\}.*\)', s)
 
-    with open(in_names[i], 'r') as f:
+
+
+def add_path_to_ref(s, id_dict):
+    return re.sub(r'(\]\(\{\{\<\s*relref\s*\")(#.*)(\"\s*\>\}\}.*\))',
+                r'\1docs/{}{}\2'.format(filename, '/' + sub_filename if sub_filename else ''),
+            s)
+
+def parse_tags(i, file_name, in_name, out_path):
+    with open(in_name, 'r') as f:
         parsed_content = content.transform_string(f.read())
 
+    res = {}
+
     if args.hugofy:
-        out_dir = os.path.join(out_path, file_names[i])
+        out_dir = os.path.join(out_path, file_name)
         os.makedirs(out_dir, exist_ok=True) 
-        out_name = os.path.join(out_dir, file_names[i])
+
+        with open(os.path.join(out_dir, '_index.md'), 'w') as f:
+            f.write(hugo_front_matter({'weight': i+1, 'title': file_name, 'bookCollapseSection': 'true'}))
 
         chap_start = '\n# '
         chaps = parsed_content.split('\n# ')
@@ -183,19 +203,53 @@ def parse_tags(i):
         for chap_i in range(len(chaps)):
             chap_name = chaps[chap_i].partition('\n')[0]
             front_matter = hugo_front_matter({'weight': chap_i+1, 'title': chap_name})
-            with open('{}-{:02.0f}.{}'.format(out_name, chap_i, 'md'), 'w') as f:
+            sub_file_name = '{}-{:02.0f}.{}'.format(file_name, chap_i, 'md')
+            with open(os.path.join(out_dir, sub_file_name), 'w') as f:
                 f.write(front_matter + chap_start + chaps[chap_i])
-        with open(os.path.join(out_dir, '_index.md'), 'w') as f:
-            f.write(hugo_front_matter({'weight': i+1, 'title': file_names[i], 'bookCollapseSection': 'true'}))
+            res.update({id: (file_name, sub_file_name) for id in get_ids(chaps[chap_i])})
     else:
-        with open(out_names[i], 'w') as f:
+        with open(os.path.join(out_path, file_name)+'.md', 'w') as f:
             f.write(parsed_content)
+        res.update({id: (file_name, '') for id in get_ref_ids(parsed_content)})
+
+    return res
+
+in_names = fn.get_in_names()
+file_names = fn.file_names
+out_path = fn.out_path
 
 if args.multicores:
     pool = mp.Pool(processes=len(os.sched_getaffinity(0)))
-    results = [pool.apply_async(parse_tags, args=(x,)) for x in range(len(fn.file_names))]
+    results = [pool.apply_async(parse_tags, args=(i, file_names[i], in_names[i], out_path)) for i in range(len(file_names))]
     pool.close()
     pool.join()
 else:
-    for i in range(len(fn.file_names)):
-        parse_tags(i)
+    results = []
+    for i in range(len(file_names)):
+        results.append(parse_tags(i, file_names[i], in_names[i], out_path))
+
+ids = {}
+for r in results:
+    if r:
+        ids.update(r.get())
+
+def replace_id(match):
+    m1 = match.group(1)
+    id = match.group(2)
+    m3 = match.group(3)
+    new_id = id
+    if ids.get(id, None):
+        fname, fsubname = ids[id]
+        new_id = 'docs/{}{}#{}'.format(fname, '/' + fsubname if fsubname else '', id)
+    return m1 + new_id + m3
+
+for root, dirs, files in os.walk(out_path):
+    for file in files:
+        if (not file.startswith('_')) and file.endswith('.md'):
+            with open(os.path.join(root, file), 'r') as f:
+                text_with_new_ref = re.sub(r'(\]\(\{\{\<\s*relref\s*\")#(.*)(\"\s*\>\}\}.*\))',
+                                            replace_id,
+                                            f.read())
+            with open(os.path.join(root, file), 'w') as f:
+                f.write(text_with_new_ref)
+
