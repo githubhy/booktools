@@ -17,7 +17,7 @@ parser.add_argument('file_name')
 args = parser.parse_args()
 
 log = logging.getLogger(__name__)
-logging.basicConfig(level=logging.DEBUG,
+logging.basicConfig(level=logging.INFO,
                     format="[%(asctime)s] %(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s",
                     datefmt="%d/%b/%Y %H:%M:%S")
 
@@ -177,14 +177,10 @@ def get_ids(s):
 def get_ref_ids(s):
     return re.findall(r'\]\(\{\{\<\s*relref\s*\"(#.*)\"\s*\>\}\}.*\)', s)
 
-
-
-def add_path_to_ref(s, id_dict):
-    return re.sub(r'(\]\(\{\{\<\s*relref\s*\")(#.*)(\"\s*\>\}\}.*\))',
-                r'\1docs/{}{}\2'.format(filename, '/' + sub_filename if sub_filename else ''),
-            s)
-
 def parse_tags(i, file_name, in_name, out_path):
+
+    log.info('[tags] converting ' + in_name)
+
     with open(in_name, 'r') as f:
         parsed_content = content.transform_string(f.read())
 
@@ -210,7 +206,9 @@ def parse_tags(i, file_name, in_name, out_path):
     else:
         with open(os.path.join(out_path, file_name)+'.md', 'w') as f:
             f.write(parsed_content)
-        res.update({id: (file_name, '') for id in get_ref_ids(parsed_content)})
+        res.update({id: (file_name, '') for id in get_ids(parsed_content)})
+
+    log.info('[tags] conversion done for ' + in_name)
 
     return res
 
@@ -231,7 +229,10 @@ else:
 ids = {}
 for r in results:
     if r:
-        ids.update(r.get())
+        if args.multicores:
+            ids.update(r.get())
+        else:
+            ids.update(r)
 
 def replace_id(match):
     m1 = match.group(1)
@@ -243,13 +244,25 @@ def replace_id(match):
         new_id = 'docs/{}{}#{}'.format(fname, '/' + fsubname if fsubname else '', id)
     return m1 + new_id + m3
 
-for root, dirs, files in os.walk(out_path):
-    for file in files:
-        if (not file.startswith('_')) and file.endswith('.md'):
-            with open(os.path.join(root, file), 'r') as f:
-                text_with_new_ref = re.sub(r'(\]\(\{\{\<\s*relref\s*\")#(.*)(\"\s*\>\}\}.*\))',
-                                            replace_id,
-                                            f.read())
-            with open(os.path.join(root, file), 'w') as f:
-                f.write(text_with_new_ref)
+def replace_file_with_id(path):
+    with open(path, 'r') as f:
+        text_with_new_ref = re.sub(r'(\]\(\{\{\<\s*relref\s*\")#(.*)(\"\s*\>\}\}.*\))',
+                                    replace_id,
+                                    f.read())
+    with open(path, 'w') as f:
+        f.write(text_with_new_ref)
+    
+    log.info('[id] completion done for ' + path)
 
+
+if args.multicores:
+    pool = mp.Pool(processes=len(os.sched_getaffinity(0)))
+    results = []
+    for root, dirs, files in os.walk(out_path):
+        results += [pool.apply_async(replace_file_with_id, args=(os.path.join(root, file),)) for file in files]
+    pool.close()
+    pool.join()
+else:
+    for root, dirs, files in os.walk(out_path):
+        for file in files:
+            replace_file_with_id(os.path.join(root, file))
