@@ -53,8 +53,9 @@ def handle_nested_class(toks):
 
 def handle_empty_id(toks):
     d = toks[0].as_dict()
-    return '<span{id}></span>'.format(
-                    id = ' id="{0}"'.format(d['id_tag'][0]) if d.get('id_tag') else '')
+    return '<a{id}{href} class="empty_id">\u00B6</a>'.format(
+                    id = ' id="{0}"'.format(d['id_tag'][0]) if d.get('id_tag') else '',
+                    href = ' href="#{0}"'.format(d['id_tag'][0]) if d.get('id_tag') else '')
 
 def handle_ref(toks):
     d = toks[0].as_dict()
