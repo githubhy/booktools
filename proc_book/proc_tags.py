@@ -174,7 +174,7 @@ def hugo_front_matter(d):
 fn = FilenameInOut(args.file_name, ext_in='.Rmd', dir_out=args.output_dir, ext_out='.md')
 
 def get_ids(s):
-    return re.findall(r'id=\"(.*)\"', s)
+    return re.findall(r'id=\"(.*?)\"', s)
 
 def get_ref_ids(s):
     return re.findall(r'\]\(\{\{\<\s*relref\s*\"(#.*?)\"\s*\>\}\}.*?\)', s)
@@ -245,7 +245,7 @@ def replace_id(match):
         new_id = 'docs/{}{}{}'.format(fname, '/' + fsubname if fsubname else '', id)
     else:
         new_id = id
-        log.warn('[id] no id named: ' + id)
+        log.warning('[id] no id named: ' + id)
     
     return m1 + new_id + m3
 
