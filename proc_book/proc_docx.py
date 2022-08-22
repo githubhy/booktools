@@ -2,9 +2,7 @@ import logging
 import argparse
 import itertools
 from docx import Document
-import pyparsing as pp
-from pyparsing import pyparsing_unicode as ppu
-from utils import FilenameInOut, flatten, MdIdAttacher
+from utils import FilenameInOut, flatten, MdIdAttacher, CommentConverter
 
 
 parser = argparse.ArgumentParser(description='')
@@ -17,28 +15,6 @@ log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.CRITICAL,
     format="[%(asctime)s] %(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s",
     datefmt="%d/%b/%Y %H:%M:%S")
-
-
-def cmt_ele(text_before, level):
-    left = '[' #'{{.c{0}}}['.format(level) #'<span class="c{0}">'.format(level)
-    right = ']{{.c{0}}}'.format(level) #'</span>\n'.format(level)
-    cmt_pre_ele = ('\n' if isinstance(text_before, str) else '') + left
-    cmt_post_ele = right + '\n'
-    return (cmt_pre_ele, cmt_post_ele)
-
-def add_comment(texts, text_before = [], level = 0):
-    if type(texts) is list:
-        for i in range(len(texts)):
-            # When it is like 【*【 and 【str*【str】, a newline should be inserted in place of *.
-            texts[i] = add_comment(texts[i], texts[i-1] if i > 0 else '', level+1)
-
-        if level > 0:
-            cmt_pre, cmt_post = cmt_ele(text_before, level)
-            texts = [text.replace('[', '〈').replace(']', '〉') if isinstance(text, str) else text for text in texts]
-            texts.insert(0, cmt_pre)
-            texts.append(cmt_post)
-
-    return texts
 
 
 def iter_text(paragraphs):
@@ -95,51 +71,20 @@ def test_cmts_parser(parser):
     print(''.join(flatten(add_comment(res_list))))
 
 
-def test_docx(pars):
-    for par in pars:
-        pf = par.paragraph_format
-        if 1 or (pf.first_line_indent != None and int(pf.first_line_indent) > 0) or (pf.left_indent != None and int(pf.left_indent) > 0):
-            print('{0} {4} -- {5} -- {1} -- {3} -- {2}'.format(pf.first_line_indent, pf.alignment, par.text[0:10], pf.space_before, pf.left_indent, par.style.name))
-
-
+############### Main ##############
 fn = FilenameInOut(args.file_name, dir_out=args.output_dir, ext_out='.Rmd')
 doc = Document(fn.get_in_names()[0])
 
-chars = pp.printables + ppu.Chinese.printables + '〇 　。，；：、﹑-！￥……（）―？《》〈〉〖〗■□♀．·“”„’‘◎○,;:/-!?<>~()[]{}#@$%^&*+=_/\\|`\'\'"'
-# Combine() is space sensitive, see: https://stackoverflow.com/a/2940844
-# content = pp.Combine(pp.Word(chars), adjacent = False)
-content = pp.CharsNotIn('【】')
-per_char = pp.Word(chars + '【】')
-comment = pp.nested_expr('【', '】', content=content)
-cmts_parser = ((content + comment[...]) ^ comment)[...]
-pp.enable_all_warnings()
+#chars = pp.printables + ppu.Chinese.printables + '〇 　。，；：、﹑-！￥……（）―？《》〈〉〖〗■□♀．·“”„’‘◎○,;:/-!?<>~()[]{}#@$%^&*+=_/\\|`\'\'"'
+#per_char = pp.Word(chars + args.cmt_braces)
 
 if args.test_cat == 'parser':
     test_cmts_parser(per_char)#cmts_parser)
     exit(0)
-if args.test_cat == 'docx':
-    test_docx(doc.paragraphs)
-    exit(0)
-    
 
-# Parse nested comments as this post says: https://stackoverflow.com/a/5454510
-parser = per_char if args.test_cat == 'char' else cmts_parser
-styled_texts = []
-FLAG_DEBUG = 0
-chap_name = ''
-sec_name = ''
-i_sec_para = -1
-for text in iter_text(doc.paragraphs):
-    try:
-        res = parser.parse_string(text, parse_all=True)
-    except pp.ParseException as pe:
-        print(pe.explain(depth=0))
-    styled_text = ''.join(flatten(add_comment(res.as_list())))
-    styled_texts.append(styled_text)
 
-    if FLAG_DEBUG:
-        print('[original text]: ' + text)
-        print('[parsed text]: ' + styled_text)
+cmt_conv = CommentConverter(iter_text(doc.paragraphs))
+styled_texts = cmt_conv.converted
 
 attacher = MdIdAttacher('\n\n'.join([text.strip() for text in styled_texts if text.strip()]))
 
