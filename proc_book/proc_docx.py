@@ -70,25 +70,14 @@ def test_cmts_parser(parser):
     print(''.join(flatten(res_list)))
     print(''.join(flatten(add_comment(res_list))))
 
-
-############### Main ##############
-fn = FilenameInOut(args.file_name, dir_out=args.output_dir, ext_out='.Rmd')
-doc = Document(fn.get_in_names()[0])
-
-#chars = pp.printables + ppu.Chinese.printables + '〇 　。，；：、﹑-！￥……（）―？《》〈〉〖〗■□♀．·“”„’‘◎○,;:/-!?<>~()[]{}#@$%^&*+=_/\\|`\'\'"'
-#per_char = pp.Word(chars + args.cmt_braces)
-
 if args.test_cat == 'parser':
     test_cmts_parser(per_char)#cmts_parser)
     exit(0)
 
-
+############### Main ##############
+fn = FilenameInOut(args.file_name, dir_out=args.output_dir, ext_out='.Rmd')
+doc = Document(fn.get_in_names()[0])
 cmt_conv = CommentConverter(iter_text(doc.paragraphs))
-styled_texts = cmt_conv.converted
-
-attacher = MdIdAttacher('\n\n'.join([text.strip() for text in styled_texts if text.strip()]))
-
+attacher = MdIdAttacher('\n\n'.join([text.strip() for text in cmt_conv.converted if text.strip()]))
 with open(fn.get_out_names()[0], 'w') as f:
     f.write(attacher.attached_full)
-
-            
